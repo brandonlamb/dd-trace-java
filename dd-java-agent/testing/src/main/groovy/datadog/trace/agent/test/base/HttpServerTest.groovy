@@ -530,9 +530,6 @@ abstract class HttpServerTest<SERVER> extends AgentTestRunner {
         "$Tags.HTTP_URL" "${endpoint.resolve(address)}"
         "$Tags.HTTP_METHOD" method
         "$Tags.HTTP_STATUS" endpoint.status
-        if (endpoint.errored) {
-          "$Tags.ERROR" endpoint.errored
-        }
         if (endpoint.query) {
           "$DDTags.HTTP_QUERY" endpoint.query
         }
