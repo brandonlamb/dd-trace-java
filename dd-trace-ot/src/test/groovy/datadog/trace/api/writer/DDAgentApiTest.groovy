@@ -98,10 +98,10 @@ class DDAgentApiTest extends DDSpecification {
     traces                                                                 | expectedRequestBody
     []                                                                     | []
     [[SpanFactory.newSpanOf(1L).setTag("service.name", "my-service")]]     | [[new TreeMap<>([
-      "duration" : 0,
+      "duration" : 10,
       "error"    : 0,
       "meta"     : ["thread.name": Thread.currentThread().getName(), "thread.id": "${Thread.currentThread().id}"],
-      "metrics"  : [:],
+      "metrics"  : ["_dd.agent_psr": 1.0, "_sampling_priority_v1": 1],
       "name"     : "fakeOperation",
       "parent_id": 0,
       "resource" : "fakeResource",
@@ -112,10 +112,10 @@ class DDAgentApiTest extends DDSpecification {
       "type"     : "fakeType"
     ])]]
     [[SpanFactory.newSpanOf(100L).setTag("resource.name", "my-resource")]] | [[new TreeMap<>([
-      "duration" : 0,
+      "duration" : 10,
       "error"    : 0,
       "meta"     : ["thread.name": Thread.currentThread().getName(), "thread.id": "${Thread.currentThread().id}"],
-      "metrics"  : [:],
+      "metrics"  : ["_dd.agent_psr": 1.0, "_sampling_priority_v1": 1],
       "name"     : "fakeOperation",
       "parent_id": 0,
       "resource" : "my-resource",
@@ -125,6 +125,13 @@ class DDAgentApiTest extends DDSpecification {
       "trace_id" : 1,
       "type"     : "fakeType"
     ])]]
+
+    ignore = traces.each {
+      it.each {
+        it.finish()
+        it.@durationNano.set(10)
+      }
+    }
   }
 
   def "Api ResponseListeners see 200 responses"() {
