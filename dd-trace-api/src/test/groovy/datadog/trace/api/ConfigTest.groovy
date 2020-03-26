@@ -79,6 +79,8 @@ class ConfigTest extends DDSpecification {
   private static final DD_WRITER_TYPE_ENV = "DD_WRITER_TYPE"
   private static final DD_SERVICE_MAPPING_ENV = "DD_SERVICE_MAPPING"
   private static final DD_TAGS_ENV = "DD_TAGS"
+  private static final DD_ENV_ENV = "DD_ENV"
+  private static final DD_VERSION_ENV = "DD_VERSION"
   private static final DD_GLOBAL_TAGS_ENV = "DD_TRACE_GLOBAL_TAGS"
   private static final DD_SPAN_TAGS_ENV = "DD_TRACE_SPAN_TAGS"
   private static final DD_HEADER_TAGS_ENV = "DD_TRACE_HEADER_TAGS"
@@ -942,6 +944,7 @@ class ConfigTest extends DDSpecification {
     setup:
     System.setProperty(PREFIX + CONFIGURATION_FILE, "src/test/resources/dd-java-tracer.properties")
     environmentVariables.set("DD_SERVICE_NAME", "set-in-env")
+    environmentVariables.set("DD_SERVICE", "some-other-ignored-name")
 
     when:
     def config = new Config()
@@ -953,6 +956,21 @@ class ConfigTest extends DDSpecification {
     System.clearProperty(PREFIX + CONFIGURATION_FILE)
     System.clearProperty(PREFIX + SERVICE_NAME)
     environmentVariables.clear("DD_SERVICE_NAME")
+    environmentVariables.clear("DD_SERVICE")
+  }
+
+  def "verify fallback to DD_SERVICE"() {
+    setup:
+    environmentVariables.set("DD_SERVICE", "service-name-from-dd-service-env-var")
+
+    when:
+    def config = new Config()
+
+    then:
+    config.serviceName == "service-name-from-dd-service-env-var"
+
+    cleanup:
+    environmentVariables.clear("DD_SERVICE")
   }
 
   def "verify fallback to properties file that does not exist does not crash app"() {
@@ -1104,5 +1122,50 @@ class ConfigTest extends DDSpecification {
     config.headerTags == [e: "5"]
 
     config.mergedProfilingTags == [a: "1", f: "6", (HOST_TAG): config.getHostName(), (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
+
+    cleanup:
+    environmentVariables.clear(DD_TAGS_ENV)
+    environmentVariables.clear(DD_GLOBAL_TAGS_ENV)
+    environmentVariables.clear(DD_SPAN_TAGS_ENV)
+    environmentVariables.clear(DD_JMX_TAGS_ENV)
+    environmentVariables.clear(DD_HEADER_TAGS_ENV)
+    environmentVariables.clear(DD_PROFILING_TAGS_ENV)
   }
+
+  def "fallback to DD_TAGS"() {
+    setup:
+    environmentVariables.set(DD_TAGS_ENV, "a:1,b:2,c:3")
+
+    when:
+    Config config = new Config()
+
+    then:
+    config.mergedSpanTags == [a: "1", c: "3", b: "2"]
+
+    cleanup:
+    environmentVariables.clear(DD_TAGS_ENV)
+  }
+
+  def "precedence of DD_ENV and DD_VERSION"() {
+    setup:
+    environmentVariables.set(DD_ENV_ENV, "test_env")
+    environmentVariables.set(DD_VERSION_ENV, "1.2.3")
+    environmentVariables.set(DD_TAGS_ENV, "dd.env:production   ,    dd.version:3.2.1")
+
+    when:
+    Config config = new Config()
+
+    then:
+    config.mergedSpanTags == ["dd.env": "test_env", "dd.version": "1.2.3"]
+
+    cleanup:
+    environmentVariables.clear(DD_ENV_ENV, DD_VERSION_ENV, DD_TAGS_ENV)
+  }
+
+  def "propertyNameToEnvironmentVariableName unit test"() {
+    expect:
+    Config.propertyNameToEnvironmentVariableName(Config.SERVICE) == "DD_SERVICE"
+  }
+
+
 }
